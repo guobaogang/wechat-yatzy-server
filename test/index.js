@@ -1,6 +1,6 @@
 let ws;
 function connectWebsocket() {
-    let url = `ws://localhost:4000`;
+    let url = `ws://localhost:8181`;
 
     ws = new WebSocket(url);
 
