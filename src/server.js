@@ -1,26 +1,36 @@
 const WebSocket = require('ws');
 
-let user = null, clients=[];
 const wss = new WebSocket.Server({
     port: 8181
 });
 
+let clients = [];
+
 //连接上就会多一个client
 wss.on('connection', function (client, req) {
     //有数据就会触发client.on     'message'    data是传上来的数据
-    user = client;
+    let user = {};
     client.on('message', function (msg) {
-        console.log(JSON.stringify(msg))
         const {
             type,
             data
         } = JSON.parse(msg);
         switch (type) {
             case 'login':
-                userLogin(client, data);
+                user = data;
+                userLogin();
                 break;
-            case 'myMsg':
-                showAllClient();
+            case 'startRoll':
+                userStartRoll();
+                break;
+            case 'endRoll':
+                userEndRoll(data);
+                break;
+            case 'selectDice':
+                userSelectDice(data);
+                break;
+            case 'confirmScore':
+                userConfirmScore(data);
                 break;
             default:
                 break;
@@ -30,47 +40,55 @@ wss.on('connection', function (client, req) {
     client.on("close", (msg) => {
         userLeave()
     })
+
+    function userLogin() {
+        client.send(JSON.stringify({
+            type: 'initData',
+            data: {
+                clients,
+                myInfo: user
+            }
+        }));
+        clients.push(user);
+        broadcast('userJoin', user)
+    }
+
+    function userStartRoll() {
+        broadcast('userStartRoll', user)
+    }
+
+    function userEndRoll(data) {
+        broadcast('userEndRoll', {
+            user: user,
+            dice: data
+        })
+    }
+
+    function userSelectDice(data) {
+        broadcast('userSelectDice', data)
+    }
+
+    function userConfirmScore(data) {
+        const {player, position} = data
+        broadcast('userConfirmScore', {
+            player,
+            position
+        });
+    }
+
+    function userLeave() {
+        let index = clients.findIndex(item => item.id = user.id);
+        if (index > -1) clients.splice(index, 1);
+        broadcast('userLeave', user)
+    }
+
+    function broadcast(type, data) {
+        wss.clients.forEach(item => {
+            if (item === client) return;
+            item.send(JSON.stringify({
+                type: type,
+                data: data
+            }))
+        })
+    }
 });
-
-function showAllClient() {
-    wss.clients.forEach(client => {
-        client.send(JSON.stringify({
-            type: 'userJoin',
-            data: client.id
-        }))
-    })
-}
-
-function userLogin(client, userInfo){
-    user.userInfo = userInfo;
-    client.send(JSON.stringify({
-        type: 'initData',
-        data: {
-            clients,
-            myInfo: userInfo
-        }
-    }));
-    clients.push(userInfo);
-    broadcast('userJoin', userInfo)
-}
-
-function userLeave(){
-    console.log(user.userInfo.id + '断开连接')
-    let index = clients.findIndex(item=>item.id = user.userInfo.id);
-    if(index> -1) clients.splice(index,1);
-    user.send(JSON.stringify({
-        type: 'userLeave',
-        data: user.userInfo
-    }))
-    broadcast('userLeave', user.userInfo)
-}
-
-function broadcast(type,data){
-    wss.clients.forEach(client => {
-        if(client.userInfo.id === user.userInfo.id) return;
-        client.send(JSON.stringify({
-            type: type,
-            data: data
-        }))
-    })
-}
