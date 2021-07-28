@@ -60,7 +60,8 @@ wss.on('connection', function (client, req) {
     function userEndRoll(data) {
         broadcast('userEndRoll', {
             user: user,
-            dice: data
+            dice: data.dice,
+            times: data.times
         })
     }
 
